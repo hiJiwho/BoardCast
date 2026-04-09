@@ -1,0 +1,2448 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <title>BoardCast by Jiwho</title>
+  <style>
+    :root {
+      --bg-color: #000000;
+      --text-main: #ffffff;
+      --text-sub: #a0a0a0;
+      --accent: #00bda5;
+      --accent-hover: #009b88;
+      --panel-bg: #1e1e1e;
+      --border-color: #333333;
+    }
+
+    @keyframes flash-bg {
+
+      0%,
+      50%,
+      100% {
+        background-color: var(--bg-color);
+      }
+
+      25%,
+      75% {
+        background-color: #ff4d4d;
+      }
+    }
+
+    .flashing {
+      animation: flash-bg 1s infinite !important;
+    }
+
+    body.cli-mode {
+      background-color: #000 !important;
+      color: #00ff00 !important;
+      font-family: 'Consolas', 'Courier New', monospace !important;
+      overflow: hidden;
+    }
+
+    body.cli-mode * {
+      background-color: transparent !important;
+      border-color: #004400 !important;
+      box-shadow: none !important;
+    }
+
+    #cli-terminal-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      z-index: 25000;
+      padding: 3vh 3vw;
+      box-sizing: border-box;
+      display: none;
+      flex-direction: column;
+      font-size: 1.8vh;
+      line-height: 1.2;
+      overflow: hidden;
+    }
+
+    body.cli-mode #cli-terminal-container {
+      display: none;
+      /* Hide the full-screen one, we use boxes now */
+    }
+
+    body.cli-mode .left-pane,
+    body.cli-mode .right-pane {
+      display: flex !important;
+      background: #000 !important;
+    }
+
+    body.cli-mode #overlay,
+    body.cli-mode #settings-overlay,
+    body.cli-mode .usb-toast {
+      display: none !important;
+    }
+
+    /* Terminal Window Style for Hybrid Layout */
+    .terminal-window {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      border: 2px solid #004400;
+      margin: 1vh;
+      padding: 1.5vh;
+      background: #000;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.05);
+    }
+
+    body.cli-mode .terminal-window {
+      display: flex;
+    }
+
+    .terminal-header {
+      background: #004400;
+      color: #00ff00;
+      padding: 0.3vh 1vw;
+      font-size: 1.4vh;
+      font-weight: bold;
+      margin: -1.5vh -1.5vh 1.5vh -1.5vh;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .terminal-content {
+      flex: 1;
+      white-space: pre;
+      color: #00ff00;
+      text-shadow: 0 0 5px #00ff00;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 1.6vh;
+      overflow: hidden;
+    }
+
+    #cli-content-left {
+      /* Dynamic font size assigned via JS */
+      line-height: 1.1 !important;
+    }
+
+    #cli-content-bottom-right,
+    #cli-content-top-right {
+      font-size: 0.5vh !important;
+      line-height: 0.7 !important; /* Tightened for more density */
+      color: #00ff00;
+      background: #000;
+      overflow: hidden; 
+    }
+
+    .ascii-grid-container {
+      display: flex;
+      flex: 1;
+      gap: 1.5vw;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .ascii-blue-box {
+      flex: 1.2; /* Left side for textbook */
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid rgba(0, 255, 0, 0.1);
+    }
+
+    .ascii-purple-stack {
+      flex: 1; /* Right side for stacked text */
+      display: flex;
+      flex-direction: column;
+      gap: 1vh;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #cli-terminal-top-right {
+      width: 100% !important;
+      flex: none !important;
+      height: 25vh !important;
+    }
+
+    /* Hide modern UI elements in CLI mode */
+    body.cli-mode .left-header,
+    body.cli-mode .daily-list-container,
+    body.cli-mode #school-display,
+    body.cli-mode .clock-container,
+    body.cli-mode #date-display,
+    body.cli-mode #current-class-container,
+    body.cli-mode #special-event-container,
+    body.cli-mode #no-class-message {
+      display: none !important;
+    }
+
+    .cli-buffer {
+      flex: 1;
+      white-space: pre;
+      overflow-y: auto;
+      margin-bottom: 2vh;
+      color: #00ff00;
+      text-shadow: 0 0 5px #00ff00;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
+
+    .cli-input-line {
+      display: flex;
+      align-items: center;
+      gap: 1ch;
+      border-top: 1px solid #004400;
+      padding-top: 1vh;
+      flex-shrink: 0;
+    }
+
+    .cli-prompt {
+      color: #00ff00;
+      font-weight: bold;
+    }
+
+    #cli-input {
+      background: transparent;
+      border: none;
+      color: #00ff00;
+      font-family: inherit;
+      font-size: inherit;
+      flex: 1;
+      outline: none;
+    }
+
+    .scanlines-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04));
+      background-size: 100% 3px, 2px 100%;
+      z-index: 26000;
+      pointer-events: none;
+      opacity: 0.4;
+      display: none;
+    }
+
+    body.cli-mode .scanlines-overlay {
+      display: block;
+    }
+
+    .cli-highlight {
+      color: #00ff00 !important;
+      background-color: #000000 !important;
+      font-weight: bold;
+      display: inline-block;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Layout: Left (25%) and Right (75%) */
+    .left-pane {
+      width: 25vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border-color);
+      background-color: var(--panel-bg);
+      position: relative;
+      padding: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .right-pane {
+      width: 75vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Left Header with Menu */
+    .left-header {
+      padding: 1.5vh 1.2vw;
+      background: #111;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 1vw;
+      flex-shrink: 0;
+    }
+
+    .menu-container {
+      position: relative;
+    }
+
+    .menu-trigger {
+      width: 4.2vh;
+      height: 4.2vh;
+      background: #252525;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.6vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #fff;
+      transition: all 0.2s;
+    }
+
+    .menu-trigger:hover {
+      background: #333;
+      border-color: var(--accent);
+    }
+
+    .menu-dropdown {
+      position: absolute;
+      top: 105%;
+      left: 0;
+      background: #252525;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.8vw;
+      padding: 0.8vh;
+      display: none;
+      flex-direction: column;
+      gap: 0.5vh;
+      box-shadow: 0 1vh 3vh rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
+
+    .menu-dropdown.active {
+      display: flex;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.8vw;
+      padding: 1.2vh 1.2vw;
+      border-radius: 0.5vw;
+      color: #ccc;
+      font-size: 1.7vh;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--accent);
+    }
+
+    .menu-item svg {
+      width: 2.2vh;
+      height: 2.2vh;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .quit-item:hover {
+      color: #ff4d4d !important;
+      background: rgba(255, 77, 77, 0.1) !important;
+    }
+
+    .brand-info {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+
+    .brand-name {
+      font-size: 2.8vh;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .beta-tag {
+      font-size: 1.4vh;
+      color: #777;
+      margin-left: 0.4vw;
+      font-weight: 600;
+      vertical-align: baseline;
+    }
+
+    .brand-author {
+      font-size: 1.3vh;
+      color: var(--accent);
+      opacity: 0.9;
+      font-weight: 500;
+    }
+
+    /* Daily List */
+    .daily-list-container {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 0.6vw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4vh;
+    }
+
+    .daily-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #252525;
+      border-radius: 0.8vw;
+      padding: 0.5vh 0.8vw;
+      border: 2px solid transparent;
+      transition: all 0.25s ease;
+      height: 8.5vh;
+      cursor: pointer;
+    }
+
+    .daily-item:hover {
+      background: #2d2d2d;
+    }
+
+    .daily-item.highlight {
+      border: 2px solid var(--accent);
+      background: #1a1a1a;
+      box-shadow: 0 0 1.5vw rgba(0, 189, 165, 0.2);
+    }
+
+    .daily-item.overridden {
+      border: 2px solid #ff4d4d !important;
+    }
+
+    .daily-item-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.2vh;
+      width: 7.5vw;
+      flex-shrink: 0;
+    }
+
+    .di-period {
+      font-size: 1.5vh;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .di-teacher {
+      font-size: 1.3vh;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .daily-item-middle {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0 0.5vw;
+    }
+
+    .di-subject {
+      font-size: 3vh;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.1;
+      word-break: keep-all;
+    }
+
+    .daily-item-right {
+      width: 7.5vh;
+      height: 7.5vh;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .daily-item-thumb {
+      width: 100%;
+      height: 100%;
+      border-radius: 0.6vw;
+      object-fit: cover;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Right Pane Components */
+    .top-right {
+      flex: 3;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #181818 0%, #0a0a0a 100%);
+      position: relative;
+    }
+
+    .bottom-right {
+      flex: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--panel-bg);
+      padding: 2vw;
+      box-sizing: border-box;
+      position: relative;
+    }
+
+    .clock-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 90%;
+      gap: 2vw;
+      margin-top: 2vh;
+    }
+
+    #time-display {
+      flex: 3;
+      font-size: 14vh;
+      font-weight: 800;
+      line-height: 1;
+      color: #ffffff;
+      letter-spacing: -4px;
+      text-align: center;
+    }
+
+    .countdown-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2vh 1vw;
+      border-radius: 2vw;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      min-height: 12vh;
+    }
+
+    #countdown-label {
+      font-size: 1.8vh;
+      color: var(--accent);
+      font-weight: bold;
+      margin-bottom: 0.5vh;
+      opacity: 0.8;
+    }
+
+    #countdown-timer {
+      font-size: 5vh;
+      font-weight: 800;
+      color: #fff;
+      margin-left: 0;
+    }
+
+    #school-display {
+      position: absolute;
+      top: 3vh;
+      left: 3vh;
+      font-size: 2.2vh;
+      color: var(--text-sub);
+      font-weight: 500;
+    }
+
+    /* Subject Display in Bottom Pane */
+    #current-class-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+    }
+
+    #class-status {
+      font-size: 2.5vh;
+      color: var(--accent);
+      margin-bottom: 0.5vh;
+      font-weight: 700;
+    }
+
+    #class-subject {
+      font-size: 12vh;
+      font-weight: 900;
+      margin: 0;
+      line-height: 1.1;
+      color: #fff;
+    }
+
+    #class-teacher {
+      font-size: 4vh;
+      color: var(--text-sub);
+      margin-top: 1vh;
+    }
+
+    #class-time-range {
+      font-size: 2vh;
+      color: #555;
+      margin-top: 0.5vh;
+      font-weight: bold;
+    }
+
+    #image-container {
+      max-width: 30vw;
+      max-height: 45vh;
+      border-radius: 1.5vw;
+      overflow: hidden;
+      box-shadow: 0 2vh 5vh rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .book-cover {
+      width: auto;
+      height: 45vh;
+      object-fit: contain;
+    }
+
+    #special-event-image-container {
+      max-width: 30vw;
+      max-height: 45vh;
+      border-radius: 1.5vw;
+      overflow: hidden;
+      box-shadow: 0 2vh 5vh rgba(0, 0, 0, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .info-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      flex: 1;
+    }
+
+    /* Special Event Display */
+    #special-event-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #special-event-text {
+      font-size: 20vh;
+      font-weight: 950;
+      color: #fff;
+      line-height: 1;
+    }
+
+    #special-event-teacher {
+      font-size: 5vh;
+      color: var(--text-sub);
+      margin-top: 2vh;
+    }
+
+    .lunch-tool {
+      margin-top: 5vh;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 3vh;
+      border-radius: 2vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2vh;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .lunch-tool-title {
+      font-size: 2.5vh;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    .lunch-tool-input-row {
+      display: flex;
+      align-items: center;
+      gap: 1vw;
+    }
+
+    .lunch-tool-input {
+      background: #000;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 1.5vh;
+      border-radius: 1vw;
+      font-size: 3vh;
+      text-align: center;
+      width: 15vw;
+    }
+
+    #lunch-tool-result {
+      font-size: 4vh;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    /* Settings Overlay */
+    #settings-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(20px);
+      z-index: 40000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 5vh 5vw;
+      box-sizing: border-box;
+    }
+
+    .settings-container {
+      background: #1e1e1e;
+      width: 100%;
+      max-width: 60vw;
+      border-radius: 2vw;
+      padding: 4vh 4vw;
+      border: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      gap: 3vh;
+    }
+
+    .settings-container h2 {
+      font-size: 4vh;
+      margin: 0;
+      color: var(--accent);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1vh;
+      flex: 1;
+    }
+
+    .form-group label {
+      font-size: 1.8vh;
+      color: #888;
+      font-weight: bold;
+    }
+
+    .form-group input,
+    .form-group select {
+      background: #111;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 1.5vh;
+      border-radius: 0.8vw;
+      font-size: 2vh;
+    }
+
+    .row {
+      display: flex;
+      gap: 2vw;
+      width: 100%;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 1vw;
+      margin-top: 2vh;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #000;
+      font-weight: 800;
+      border: none;
+      padding: 2vh 4vw;
+      border-radius: 1vw;
+      font-size: 2.2vh;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button.secondary {
+      background: #333;
+      color: #fff;
+      font-weight: bold;
+      border: none;
+      padding: 2vh 3vw;
+      border-radius: 1vw;
+      font-size: 2vh;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-3px);
+    }
+
+    /* Overlay */
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      z-index: 30000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loader {
+      border: 0.8vh solid #222;
+      border-top: 0.8vh solid var(--accent);
+      border-radius: 50%;
+      width: 8vh;
+      height: 8vh;
+      animation: spin 1s linear infinite;
+      margin-bottom: 4vh;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Override Modal */
+    .override-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 10002;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .override-content {
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 1vw;
+      padding: 3vh;
+      width: 30vw;
+      max-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      gap: 2vh;
+    }
+
+    .override-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #444;
+      padding-bottom: 1vh;
+    }
+
+    .override-header span {
+      font-size: 2.5vh;
+      font-weight: bold;
+    }
+
+    .override-list {
+      overflow-y: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5vw;
+    }
+
+    .override-btn {
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      padding: 1vh 1.5vw;
+      border-radius: 0.5vw;
+      font-size: 1.8vh;
+      cursor: pointer;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 3vh;
+      cursor: pointer;
+    }
+
+    /* Floating Controls Bar at the bottom right of right-pane */
+    .floating-controls {
+      position: absolute;
+      bottom: 3vh;
+      right: 3vh;
+      display: flex;
+      gap: 1vh;
+      z-index: 2000;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 0.8vh;
+      border-radius: 1.2vh;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .control-btn {
+      width: 4.5vh;
+      height: 4.5vh;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.8vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #fff;
+      transition: all 0.2s;
+    }
+
+    .control-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .control-btn svg {
+      width: 2.2vh;
+      height: 2.2vh;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.5;
+    }
+
+    /* USB Notification Toast */
+    .usb-toast {
+      position: fixed;
+      top: 3vh;
+      right: 3vh;
+      background: rgba(0, 189, 165, 0.9);
+      color: #000;
+      padding: 2vh 3vw;
+      border-radius: 1vw;
+      font-weight: 900;
+      font-size: 2.5vh;
+      display: flex;
+      align-items: center;
+      gap: 1.5vw;
+      box-shadow: 0 1vh 3vh rgba(0, 189, 165, 0.4);
+      z-index: 50000;
+      transform: translateX(120%);
+      transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      backdrop-filter: blur(10px);
+    }
+
+    .usb-toast.active {
+      transform: translateX(0);
+    }
+
+    .usb-toast.usb-purple {
+      background: rgba(155, 89, 182, 0.9);
+      box-shadow: 0 1vh 3vh rgba(155, 89, 182, 0.4);
+    }
+
+    .usb-toast.usb-blue {
+      background: rgba(52, 152, 219, 0.9);
+      box-shadow: 0 1vh 3vh rgba(52, 152, 219, 0.4);
+    }
+
+    .usb-toast.usb-mint {
+      background: rgba(46, 204, 113, 0.9);
+      box-shadow: 0 1vh 3vh rgba(46, 204, 113, 0.4);
+    }
+
+    .usb-toast svg {
+      width: 4vh;
+      height: 4vh;
+      fill: #000;
+    }
+
+    .usb-update-status {
+      font-size: 1.5vh;
+      opacity: 0.8;
+      margin-top: 0.5vh;
+    }
+
+    /* USB Explorer Modal */
+    #usb-explorer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(15px);
+      z-index: 45000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .explorer-container {
+      background: #1a1a1a;
+      width: 50vw;
+      max-height: 80vh;
+      border-radius: 1.5vw;
+      border: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 2vh 5vh rgba(0, 0, 0, 0.5);
+    }
+
+    .explorer-header {
+      padding: 2vh 2vw;
+      background: #252525;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .explorer-header h2 {
+      margin: 0;
+      font-size: 2.5vh;
+      color: var(--accent);
+    }
+
+    .explorer-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1vh 1vw;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(10vw, 1fr));
+      gap: 1vh;
+    }
+
+    .explorer-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 1.5vh;
+      border-radius: 1vw;
+      cursor: pointer;
+      transition: all 0.2s;
+      gap: 1vh;
+    }
+
+    .explorer-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .explorer-item svg {
+      width: 5vh;
+      height: 5vh;
+      fill: var(--accent);
+    }
+
+    .explorer-item span {
+      font-size: 1.4vh;
+      word-break: break-all;
+      color: #eee;
+    }
+
+    .explorer-footer {
+      padding: 2vh 2vw;
+      border-top: 1px solid #333;
+      display: flex;
+      justify-content: center;
+      gap: 1vw;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- CLI Terminal Elements -->
+  <div id="cli-terminal-container">
+    <div class="cli-buffer" id="cli-buffer"></div>
+    <div class="cli-input-line">
+      <span class="cli-prompt">C:\Users\Student&gt;</span>
+      <input type="text" id="cli-input" spellcheck="false" autocomplete="off">
+    </div>
+  </div>
+  <div class="scanlines-overlay"></div>
+
+  <div id="overlay">
+    <div class="loader"></div>
+    <h1 id="overlay-title" style="font-size: 4vh;">BoardCast 준비 중...</h1>
+    <p id="overlay-desc" style="color: #666; font-size: 2vh;">데이터 서버와 통신하고 있습니다.</p>
+    <button id="reload-btn" onclick="location.reload()"
+      style="display:none; margin-top:2vh; padding:1vh 2vw; cursor:pointer;">다시 시도</button>
+  </div>
+
+  <div id="settings-overlay">
+    <div class="settings-container" id="settings-step-1">
+      <h2>1단계: 학교 정보 설정</h2>
+      <div class="row">
+        <div class="form-group"><label>지역 (예: 서울)</label><input type="text" id="set-region"></div>
+        <div class="form-group"><label>학교명 (예: 양동중학교)</label><input type="text" id="set-school"></div>
+      </div>
+      <div class="row">
+        <div class="form-group"><label>학년</label><input type="number" id="set-grade" min="1" max="6"></div>
+        <div class="form-group"><label>반</label><input type="number" id="set-class" min="1" max="20"></div>
+      </div>
+      <div class="row">
+        <div class="form-group"><label>담임 선생님 성함</label><input type="text" id="set-hometeacher"></div>
+      </div>
+      <div class="row">
+        <div class="form-group"><label>1교시 시작시간</label><input type="time" id="set-starttime"></div>
+        <div class="form-group"><label>쉬는시간 (분)</label><input type="number" id="set-breaktime" placeholder="10"></div>
+      </div>
+      <div class="row">
+        <div class="form-group"><label>수업시간 (분)</label><input type="number" id="set-classduration" placeholder="45">
+        </div>
+        <div class="form-group"><label>점심시간 길이 (분)</label><input type="number" id="set-lunchtime" placeholder="50">
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5vw;">
+          <input type="checkbox" id="set-devmode" style="width:2vh; height:2vh;">
+          <label for="set-devmode" style="margin:0; cursor:pointer;">개발자 모드 (실행 시 개발자 도구 열기)</label>
+        </div>
+      </div>
+      <div id="step1-error" style="color:#ff4d4d; font-size:1.8vh; font-weight:bold;"></div>
+      <div class="btn-row">
+        <button class="primary" onclick="proceedToStep2()">다음 ➡️</button>
+        <button class="secondary" onclick="closeSettings()">닫기</button>
+      </div>
+    </div>
+
+    <div class="settings-container" id="settings-step-2" style="display:none;">
+      <h2>2단계: 교과서 이미지 연결</h2>
+      <button class="secondary" onclick="importImages()" id="import-btn">📂 교과서 이미지 폴더 가져오기...</button>
+      <div id="import-status" style="font-size:1.4vh; color:var(--accent);"></div>
+      <div id="image-mapping-container" style="max-height:40vh; overflow-y:auto; padding-right:1vw;"></div>
+      <div class="btn-row">
+        <button class="secondary" onclick="backToStep1()">⬅️ 이전</button>
+        <button class="primary" onclick="proceedToStep3()">다음 ➡️</button>
+      </div>
+    </div>
+
+    <div class="settings-container" id="settings-step-3" style="display:none;">
+      <h2>3단계: 선생님 성함 확인</h2>
+      <div id="teacher-mapping-container" style="max-height:45vh; overflow-y:auto; padding-right:1vw;"></div>
+      <div class="btn-row">
+        <button class="secondary" onclick="backToStep2()">⬅️ 이전</button>
+        <button class="primary" onclick="finishSettings()">완료 및 저장 ✅</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- USB Explorer Overlay (DEPRECATED: Now using standalone window) -->
+  <div id="usb-explorer-overlay" style="display:none !important;"></div>
+
+  <div class="left-pane">
+    <div class="left-header">
+      <div class="brand-info" style="margin-left: 0.5vw;">
+        <div class="brand-name">BoardCast<span class="beta-tag">-Beta</span></div>
+        <div class="brand-author">by Jiwho</div>
+      </div>
+    </div>
+    <div id="daily-list-container" class="daily-list-container">
+      <!-- Timetable items injected here -->
+    </div>
+    <div id="cli-terminal-left" class="terminal-window">
+      <div class="terminal-header">[TIMETABLE_DUMP]</div>
+      <div id="cli-content-left" class="terminal-content"></div>
+    </div>
+  </div>
+
+  <div class="right-pane">
+    <div class="top-right">
+      <div id="school-display">정보를 불러오는 중...</div>
+      <div class="clock-container">
+        <div id="time-display">00:00:00</div>
+        <div class="countdown-section">
+          <div id="countdown-label">다음 시간까지</div>
+          <div id="countdown-timer">0:00</div>
+        </div>
+      </div>
+      <div id="date-display" style="margin-top: 2vh; font-size: 3vh; color: var(--text-sub);">날짜 로드 중...</div>
+      <div id="cli-terminal-top-right" class="terminal-window">
+        <div class="terminal-header">[CLOCK_SYNC]</div>
+        <div id="cli-content-top-right" class="terminal-content"></div>
+      </div>
+    </div>
+    <div class="bottom-right">
+      <div id="current-class-container"
+        style="display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 5vw; width: 100%;">
+        <div id="image-container"></div>
+        <div class="info-column">
+          <div id="class-status"></div>
+          <h1 id="class-subject"></h1>
+          <div id="class-teacher"></div>
+          <div id="class-time-range"></div>
+        </div>
+      </div>
+      <div id="special-event-container"
+        style="display: none; flex-direction: row; align-items: center; justify-content: center; gap: 5vw; width: 100%;">
+        <div id="special-event-image-container"></div>
+        <div class="info-column">
+          <div id="special-event-text"></div>
+          <div id="special-event-teacher"></div>
+          <div id="lunch-departure-display"
+            style="display:none; margin-top: 2vh; font-size: 8vh; font-weight: 900; color: #ffeb3b; text-shadow: 0 0 20px rgba(255, 235, 59, 0.4);">
+            00:00 출발
+          </div>
+          <div id="lunch-tool-container" class="lunch-tool" style="display:none; margin-top: 2vh;">
+            <div class="lunch-tool-title">⏱️ 급식실 출발 시간 설정</div>
+            <div class="lunch-tool-input-row">
+              <input type="time" id="lunch-tool-input" class="lunch-tool-input" oninput="updateLunchDepartureTime()">
+            </div>
+            <div id="lunch-tool-result" style="font-size: 2vh; color: #888;">시간을 입력하면 화면에 상시 표시됩니다.</div>
+          </div>
+        </div>
+      </div>
+      <div id="no-class-message" style="display:none; font-size:5vh; font-weight:bold; color:#555;">수업 정보가 없습니다.</div>
+
+      <div id="cli-terminal-bottom-right" class="terminal-window">
+        <div class="terminal-header">[CURRENT_CLASS_VIEW]</div>
+        <div id="cli-content-bottom-right" class="terminal-content">
+          <div class="ascii-grid-container">
+            <div id="cli-zone-blue" class="ascii-blue-box"></div>
+            <div class="ascii-purple-stack">
+              <div id="cli-zone-purple-top" class="ascii-purple-box"></div>
+              <div id="cli-zone-purple-bottom" class="ascii-purple-box"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Controls Bar -->
+      <div class="floating-controls">
+        <div id="usb-shortcut-btn" class="control-btn" onclick="openUSBShortcut()" title="USB 탐색기"
+          style="display:none; color:#2ecc71;">
+          <svg viewBox="0 0 24 24">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" />
+          </svg>
+        </div>
+        <div class="control-btn" onclick="handleCloseClick()" title="종료" style="color:#ff6b6b;">
+          <svg viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </div>
+        <div class="control-btn" onclick="handleFileClick()" title="전체화면 / 바탕화면 전환">
+          <svg viewBox="0 0 24 24">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+            </path>
+          </svg>
+        </div>
+        <div class="control-btn" onclick="openSettings()" title="설정">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z">
+            </path>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let isInitStarted = false;
+    let timetableData = [];
+    let currentPeriodIndex = -1;
+    let lastSystemLayout = null;
+    let currentLayout = null;
+    let weeklySubjects = [];
+    let debugOffset = 0;
+    let lunchDepartureTime = null;
+    let isFlashing = false;
+
+    // --- April Fools 2026 CLI Mode Implementation ---
+    const ASCII_FONT = {
+      '0': [" 000 ", "0   0", "0   0", "0   0", " 000 "],
+      '1': ["  1  ", " 11  ", "  1  ", "  1  ", "11111"],
+      '2': [" 222 ", "2   2", "   2 ", "  2  ", "22222"],
+      '3': [" 333 ", "    3", "  33 ", "    3", " 333 "],
+      '4': ["   4 ", "  44 ", " 4 4 ", "44444", "   4 "],
+      '5': ["55555", "5    ", "5555 ", "    5", "5555 "],
+      '6': [" 666 ", "6    ", "6666 ", "6   6", " 666 "],
+      '7': ["77777", "    7", "   7 ", "  7  ", "  7  "],
+      '8': [" 888 ", "8   8", " 888 ", "8   8", " 888 "],
+      '9': [" 999 ", "9   9", " 9999", "    9", " 999 "],
+      ':': ["     ", "  :  ", "     ", "  :  ", "     "],
+      ' ': ["     ", "     ", "     ", "     ", "     "],
+      '-': ["     ", "     ", "-----", "     ", "     "]
+    };
+
+    function getBigText(text) {
+      let lines = ["", "", "", "", ""];
+      for (const char of text) {
+        const font = ASCII_FONT[char] || ASCII_FONT[' '];
+        // Maximum spacing for ultra-wide look
+        const spacing = (char === ':') ? "            " : "          ";
+        for (let i = 0; i < 5; i++) lines[i] += font[i] + spacing;
+      }
+      return lines.join("\n");
+    }
+
+    /**
+     * Renders each character in separate blocks and merges them.
+     */
+    async function textToASCII(text, fontSize = 200, charWidth = 25, minHeight = 35) {
+      const charsList = text.split("");
+      const blocks = await Promise.all(charsList.map(char => renderCharToASCII(char, fontSize, charWidth, minHeight)));
+      return mergeASCIIBlocks(blocks, (text.includes(":") ? 1 : 2));
+    }
+
+    async function renderCharToASCII(char, fontSize, width, height) {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.font = `bold ${fontSize}px "Orbitron", "Courier New", monospace`;
+        
+        const metrics = ctx.measureText(char);
+        const charActualWidth = Math.ceil(metrics.width) || fontSize * 0.6;
+        canvas.width = charActualWidth;
+        canvas.height = fontSize;
+
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.textBaseline = "top";
+        ctx.textAlign = "center";
+        ctx.fillText(char, canvas.width / 2, 0);
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = width;
+        outCanvas.height = height;
+        const outCtx = outCanvas.getContext('2d');
+        outCtx.imageSmoothingEnabled = false;
+        outCtx.drawImage(canvas, 0, 0, width, height);
+        const outData = outCtx.getImageData(0, 0, width, height).data;
+
+        const charSet = " .:-=+*#%@";
+        let ascii = "";
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            const b = (outData[i] + outData[i + 1] + outData[i + 2]) / 3;
+            ascii += charSet[Math.floor(b / 256 * charSet.length)];
+          }
+          ascii += "\n";
+        }
+        resolve(ascii);
+      });
+    }
+
+    function mergeASCIIBlocks(blocks, gap = 2) {
+      if (blocks.length === 0) return "";
+      const allLines = blocks.map(b => b.split('\n'));
+      const maxLines = Math.max(...allLines.map(lines => lines.length));
+      
+      let merged = "";
+      for (let i = 0; i < maxLines; i++) {
+        let line = "";
+        allLines.forEach((lines, bIdx) => {
+          const currentLine = (lines[i] || "");
+          line += currentLine + (bIdx === blocks.length - 1 ? "" : " ".repeat(gap));
+        });
+        merged += line + "\n";
+      }
+      return merged;
+    }
+
+    const FUNNY_SUBJECTS = {
+      "수학": "졸음과의 사투 (루트 지옥)",
+      "국어": "훈민정음 서바이벌",
+      "영어": "외계어 입문 (ABC 놀이)",
+      "과학": "현대 연금술 실습",
+      "사회": "방구석 세계 일주",
+      "체육": "E-스포츠 (피지컬 단련)",
+      "미술": "피카소 빙의하기",
+      "음력": "고대의 시간 측정",
+      "음악": "쇼미더머니 고등래퍼",
+      "기술": "아이언맨 슈트 제작",
+      "가정": "백종원 따라잡기",
+      "정보": "코드 닌자 수련법",
+      "도덕": "성인군자 시뮬레이션",
+      "한문": "천자문 래퍼",
+      "일본어": "이세계 소환 대화법",
+      "중국어": "성조 마스터"
+    };
+
+    function mergeASCII(left, right, gap = 4) {
+      const leftLines = left.split('\n');
+      const rightLines = right.split('\n');
+      const maxLines = Math.max(leftLines.length, rightLines.length);
+      const leftWidth = leftLines.reduce((max, l) => Math.max(max, l.length), 0);
+
+      let merged = "";
+      for (let i = 0; i < maxLines; i++) {
+        const l = (leftLines[i] || "").padEnd(leftWidth, " ");
+        const r = (rightLines[i] || "");
+        merged += l + " ".repeat(gap) + r + "\n";
+      }
+      return merged;
+    }
+
+    let isCLIMode = false;
+    let cliUpdateTimer = null;
+    let isCLIInitialRender = true;
+    let lastRenderedTime = "";
+
+    function checkAprilFools() {
+      const now = getCurrentTime();
+      return (now.getMonth() === 3 && now.getDate() === 1);
+    }
+
+    async function imageToASCII(imgUrl, width = 60) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          // Prioritize filling the 45vh box height (90 lines at 0.5vh)
+          let targetHeight = 90;
+          let aspectAdjust = 0.5; 
+          let calculatedWidth = Math.floor((targetHeight / (img.height / img.width)) / aspectAdjust);
+          // Set final dimensions
+          canvas.width = calculatedWidth;
+          canvas.height = targetHeight;
+          ctx.drawImage(img, 0, 0, calculatedWidth, targetHeight);
+          const data = ctx.getImageData(0, 0, calculatedWidth, targetHeight).data;
+          const chars = "@%#*+=-:. ";
+          let ascii = "";
+          for (let y = 0; y < targetHeight; y++) {
+            for (let x = 0; x < calculatedWidth; x++) {
+              const i = (y * calculatedWidth + x) * 4;
+              const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+              ascii += chars[Math.floor(brightness / 256 * chars.length)];
+            }
+            ascii += "\n";
+          }
+          resolve(ascii);
+        };
+        img.onerror = () => resolve("[SYSTEM] IMAGE_CONVERSION_FAILED");
+        img.src = imgUrl;
+      });
+    }
+
+    async function renderTerminalLeft(schedule) {
+      const buffer = document.getElementById('cli-content-left');
+      if (!buffer || !schedule) return;
+
+      let contentLines = [];
+      const info = window.appInfo || {};
+      contentLines.push(`[STATION] ${info.schoolName || "???"}`);
+      contentLines.push(`[ROOM] Grade: ${info.grade} | Class: ${info.class}`);
+      contentLines.push("==========================================");
+
+      if (timetableData && timetableData.length > 0) {
+        timetableData.forEach((item, idx) => {
+          const sch = (schedule && schedule[idx]) ? schedule[idx] : null;
+          const isCurrent = (currentPeriodIndex === idx);
+          const status = isCurrent ? ">>" : "  ";
+          const border = isCurrent ? ">> [PERIOD " + (idx + 1) + "] " + "=".repeat(23) : "   [PERIOD " + (idx + 1) + "] " + "-".repeat(23);
+
+          contentLines.push(""); // Spacing
+          contentLines.push(border);
+          contentLines.push(`${status} Subject : ${item.subject}`);
+          contentLines.push(`${status} Teacher : ${item.mappedTeacher || "???"}`);
+          if (sch) contentLines.push(`${status} Time    : ${formatMinutes(sch.start)} ~ ${formatMinutes(sch.end)}`);
+          else contentLines.push(`${status} Time    : --:--`);
+          contentLines.push(isCurrent ? ">>" + "=".repeat(38) : "   " + "-".repeat(38));
+        });
+      } else {
+        contentLines.push("");
+        contentLines.push("   [SYSTEM] STATUS_STANDBY");
+        contentLines.push("   [BUFFER] NO_DATA_STREAM");
+      }
+      buffer.innerHTML = contentLines.map(l => `<div>${l}</div>`).join("");
+    }
+
+    async function renderTerminalTopRight() {
+      const buffer = document.getElementById('cli-content-top-right');
+      if (!buffer) return;
+      const now = getCurrentTime();
+      const timeStr = now.toTimeString().split(' ')[0];
+
+      let contentLines = [];
+      contentLines.push(`[DATE] ${now.toLocaleDateString()}`);
+      contentLines.push("");
+      // Fill 25vh box exactly with 50 lines at 0.5vh
+      const bigClock = await textToASCII(timeStr, 250, 60, 50); 
+      buffer.innerHTML = `<div style="font-size:0.5vh; line-height:1.0; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; height:100%; color:#00ff00;">` + 
+                         `<div style="white-space:pre; text-align:center;">${bigClock}</div>` + 
+                         `</div>`;
+    }
+
+    async function renderTerminalBottomRight(schedule, isBreakTime, specialEventText) {
+      const buffer = document.getElementById('cli-content-bottom-right');
+      if (!buffer) return;
+
+      // 1. Special Event Priority
+      if (specialEventText) {
+        let displayTitle = specialEventText;
+        if (specialEventText === '조회') displayTitle = "[ASSEMBLY]";
+        else if (specialEventText === '점심') displayTitle = "[LUNCH]";
+        else if (specialEventText === '종례') displayTitle = "[DISMISSAL]";
+
+        const eventBig = await textToASCII(displayTitle, 300, 100, 80);
+        const blue = document.getElementById('cli-zone-blue');
+        const p1 = document.getElementById('cli-zone-purple-top');
+        const p2 = document.getElementById('cli-zone-purple-bottom');
+        
+        if (blue) blue.innerHTML = `<div style="font-size:1.6vh; color:var(--accent); border-bottom:1px solid rgba(0,255,0,0.5);">[SYSTEM_STATUS: ${displayTitle}]</div>\n<div style="font-size:0.5vh; line-height:1.0; white-space:pre;">${eventBig}</div>`;
+        if (p1) p1.innerHTML = `<div style="font-size:1.6vh; color:var(--accent); border-bottom:1px solid rgba(0,255,0,0.5);">[EVENT_STREAM]</div>\n<div style="font-size:0.5vh; line-height:1.0; white-space:pre;">${eventBig}</div>`;
+        if (p2) p2.innerHTML = `<div style="font-size:1.6vh; color:var(--accent); border-bottom:1px solid rgba(0,255,0,0.5);">[ALERT_LOG]</div>\n<div style="font-size:0.5vh; line-height:1.0; white-space:pre;">${eventBig}</div>`;
+        return;
+      }
+
+      // 2. Class / Break Preview
+      if (currentPeriodIndex !== -1 && timetableData[currentPeriodIndex]) {
+        const item = timetableData[currentPeriodIndex];
+        const statusLabel = isBreakTime ? "[UPCOMING_SUBJECT]" : "[ACTIVE_SUBJECT]";
+        const leftContent = (item.subjectImage && !item.hideImage) ? 
+                            await imageToASCII(item.subjectImage, 280) : 
+                            "[!] NO_IMAGE_STREAM\n".repeat(90);
+
+        const subjectBig = await textToASCII(item.subject, 300, 100, 45);
+        const teacherBig = await textToASCII(item.mappedTeacher || item.Teacher || "?", 300, 100, 45);
+
+        const blue = document.getElementById('cli-zone-blue');
+        const p1 = document.getElementById('cli-zone-purple-top');
+        const p2 = document.getElementById('cli-zone-purple-bottom');
+        
+        // Exact 45vh and 22.5vh fits with 1.0 line-height
+        if (blue) blue.innerHTML = `<div style="font-size:1.6vh; color:var(--accent); border-bottom:1px solid rgba(0,255,0,0.5); padding-bottom:2px;">[TEXTBOOK_SCAN]</div>\n<div style="font-size:0.5vh; line-height:1.0; white-space:pre; flex:1;">${leftContent}</div>`;
+        if (p1) p1.innerHTML = `<div style="font-size:1.6vh; color:var(--accent); border-bottom:1px solid rgba(0,255,0,0.5); padding-bottom:2px;">[SUBJECT_ID]</div>\n<div style="font-size:0.5vh; line-height:1.0; white-space:pre; flex:1;">${subjectBig}</div>`;
+        if (p2) p2.innerHTML = `<div style="font-size:1.6vh; color:var(--accent); border-bottom:1px solid rgba(0,255,0,0.5); padding-bottom:2px;">[TEACHER_ID]</div>\n<div style="font-size:0.5vh; line-height:1.0; white-space:pre; flex:1;">${teacherBig}</div>`;
+      } else {
+        buffer.innerHTML = "<div>[STATUS] STANDBY_MODE</div>";
+      }
+    }
+
+    function initCLI() {
+      if (isCLIMode) return;
+      isCLIMode = true;
+      document.body.classList.add('cli-mode');
+
+      // Initial render attempt to avoid empty boxes
+      if (typeof updateCurrentClassDisplay === 'function') {
+        updateCurrentClassDisplay();
+      } else {
+        renderTerminalLeft();
+        renderTerminalTopRight();
+        renderTerminalBottomRight();
+      }
+    }
+
+    const applauseAudio = new Audio('https://www.soundjay.com/misc/sounds/applause-01.mp3');
+    function playApplause() {
+      applauseAudio.currentTime = 0;
+      applauseAudio.play().catch(e => console.warn("Audio play failed:", e));
+    }
+
+    // --- End of CLI Implementation ---
+
+    function getCurrentTime() {
+      if (debugOffset === 0) return new Date();
+      return new Date(Date.now() + debugOffset);
+    }
+
+    // Debug Tools for Console
+    window.Debug = {
+      Time: function (h, m) {
+        const target = new Date();
+        target.setHours(h, m, 0, 0);
+        debugOffset = target.getTime() - Date.now();
+        updateClock();
+        updateCurrentClassDisplay();
+        console.log(`[Debug] Time offset set. Virtual time: ${target.toLocaleTimeString()}`);
+      },
+      Day: function (m, d) {
+        const target = new Date();
+        target.setMonth(m - 1, d);
+        debugOffset = target.getTime() - Date.now();
+        updateClock();
+        if (isCLIMode) {
+          renderTerminalLeft();
+          renderTerminalTopRight();
+          renderTerminalBottomRight();
+        }
+        else updateCurrentClassDisplay();
+        console.log(`[Debug] Date offset set. Virtual date: ${target.toLocaleDateString()}`);
+      },
+      Set: function (m, d, h, min) {
+        const target = new Date();
+        target.setMonth(m - 1, d);
+        target.setHours(h, min || 0, 0, 0);
+        debugOffset = target.getTime() - Date.now();
+        updateClock();
+        if (checkAprilFools() && !isCLIMode) initCLI();
+        else if (isCLIMode) {
+          renderTerminalLeft();
+          renderTerminalTopRight();
+          renderTerminalBottomRight();
+        }
+        else updateCurrentClassDisplay();
+        console.log(`[Debug] Time/Date override set: ${target.toLocaleString()}`);
+      },
+      Reset: function () {
+        debugOffset = 0;
+        updateClock();
+        if (isCLIMode) {
+          isCLIMode = false;
+          document.body.classList.remove('cli-mode');
+        }
+        updateCurrentClassDisplay();
+        console.log("[Debug] Time reset to system clock.");
+      }
+    };
+
+    // Cross-platform API bridge
+    const isElectron = !!(window.api && window.api.getTimetable);
+
+    // Polyfill window.api for non-Electron environments (Android/Browser)
+    if (!isElectron) {
+      console.log("[System] Non-Electron environment detected. Using LocalStorage polyfill.");
+      window.api = {
+        getTimetable: async () => {
+          const info = JSON.parse(localStorage.getItem('appSettings') || '{}');
+          if (!info.schoolName) return { success: false, needsMapping: true, message: "초기 설정이 필요합니다." };
+
+          try {
+            // Attempt to fetch via Proxy if on Android/Browser
+            const proxy = "https://api.allorigins.win/raw?url=";
+            const target = encodeURIComponent(`http://comcigan.kr:4082/st`);
+            const response = await fetch(`${proxy}${target}`);
+            const text = await response.text();
+
+            // This is a simplified check. Comcigan's raw data is complex.
+            // For a "Standalone" APK, we might need a more robust parser or 
+            // the user can sync from PC via a JSON string.
+
+            const savedTimetable = localStorage.getItem('timetableData');
+            if (savedTimetable) return { success: true, timetable: JSON.parse(savedTimetable), info: info };
+
+            return { success: false, error: "안드로이드 버전은 첫 실행 시 PC 버전에서 데이터를 동기화하거나 네트워크 설정을 확인해야 합니다." };
+          } catch (e) {
+            const savedTimetable = localStorage.getItem('timetableData');
+            if (savedTimetable) return { success: true, timetable: JSON.parse(savedTimetable), info: info };
+            return { success: false, error: "네트워크 연결 또는 서버 설정이 필요합니다." };
+          }
+        },
+        getSettings: async () => {
+          return {
+            info: JSON.parse(localStorage.getItem('appSettings') || '{}'),
+            tbImageArr: JSON.parse(localStorage.getItem('tbImageArr') || '[]')
+          };
+        },
+        saveSettings: async (data) => {
+          if (data.info) localStorage.setItem('appSettings', JSON.stringify(data.info));
+          if (data.tbImageArr) localStorage.setItem('tbImageArr', JSON.stringify(data.tbImageArr));
+          return { success: true };
+        },
+        setWindowLayout: () => { }, // No-op on Android
+        controlExplorer: () => { }, // No-op on Android
+        appQuit: () => { }, // No-op on Android
+        onUSBEvent: () => { }, // Not used on Android as requested
+      };
+    }
+
+    async function safeInvoke(channel, ...args) {
+      if (!window.api || !window.api[channel]) return null;
+      try { return await window.api[channel](...args); } catch (err) { console.error(`IPC Error [${channel}]:`, err); return null; }
+    }
+
+    async function getTimetable() { return await safeInvoke('getTimetable'); }
+
+    function updateClock() {
+      const now = getCurrentTime();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('time-display').innerText = `${h}:${m}:${s}`;
+      const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+      document.getElementById('date-display').innerText = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${weekdays[now.getDay()]}`;
+
+      if (countdownTargetDate) {
+        const diff = countdownTargetDate - now;
+        if (diff > 0) {
+          const totalS = Math.floor(diff / 1000);
+          document.getElementById('countdown-timer').innerText = `${Math.floor(totalS / 60)}:${String(totalS % 60).padStart(2, '0')}`;
+        } else {
+          document.getElementById('countdown-timer').innerText = `0:00`;
+        }
+      } else {
+        document.getElementById('countdown-timer').innerText = "--:--";
+      }
+    }
+    let countdownTargetDate = null;
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function getMinutes(timeStr) {
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    }
+    function formatMinutes(m) {
+      return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    }
+
+    async function updateCurrentClassDisplay() {
+      try {
+        const now = getCurrentTime();
+        const curMins = now.getHours() * 60 + now.getMinutes();
+
+        if (!timetableData || timetableData.length === 0) return;
+
+        let statusText = "수업 준비 중";
+        let isBreakTime = true;
+        let isBeforeSchool = true;
+        let isAfterSchool = false;
+        let specialEventText = null;
+
+        const info = window.appInfo || {};
+        const breakMins = info.Breaktime || 10;
+        const classDur = info.ClassDuration || 45;
+        const startTime = info.StartTime || "09:00";
+        const startMins = getMinutes(startTime);
+
+        let schedule = [];
+        let marker = startMins;
+        timetableData.forEach((item, i) => {
+          if (String(item.classTime) === '5' && i > 0) {
+            const lunchDur = info.LunchDuration || 50;
+            marker += (lunchDur > breakMins ? lunchDur - breakMins : 0);
+          }
+          const start = marker;
+          const end = start + classDur;
+          schedule.push({ start, end });
+          marker = end + breakMins;
+        });
+
+        for (let i = 0; i < schedule.length; i++) {
+          const sch = schedule[i];
+          // 1. Before School / Assembly / 1st Period Preview logic
+          if (i === 0 && curMins < sch.start) {
+            currentPeriodIndex = 0;
+            isBeforeSchool = true;
+            isBreakTime = true;
+
+            const target = new Date(now.getTime());
+            target.setHours(Math.floor(sch.start / 60), sch.start % 60, 0, 0);
+            countdownTargetDate = target;
+
+            const minBeforeStart = sch.start - curMins;
+
+            if (minBeforeStart <= breakMins) {
+              // BT분 전부터는 1교시 예고 (isBeforeSchool=false to show class info)
+              specialEventText = null;
+              isBeforeSchool = false;
+              isBreakTime = true; // Still countdown to start
+              statusText = "수업 예정";
+            } else if (minBeforeStart <= 2 * breakMins) {
+              // 2BT ~ 1BT 전까지는 조회
+              specialEventText = "조회";
+              statusText = "아침조회";
+            } else {
+              // 그 외 아침
+              specialEventText = "아침시간";
+              statusText = "수업 준비 중";
+            }
+            break;
+          }
+
+          // 2. During Class
+          if (curMins >= sch.start && curMins < sch.end) {
+            currentPeriodIndex = i;
+            isBreakTime = false;
+            isBeforeSchool = false;
+            statusText = "현재 수업 중";
+            const target = new Date(now.getTime());
+            target.setHours(Math.floor(sch.end / 60), sch.end % 60, 0, 0);
+            countdownTargetDate = target;
+            break;
+          }
+
+          // 3. Breakthrough/Lunch/After School
+          const nextStart = (i + 1 < schedule.length) ? schedule[i + 1].start : 1440;
+          if (curMins >= sch.end && curMins < nextStart) {
+            if (i + 1 < schedule.length) {
+              currentPeriodIndex = i + 1;
+              isBreakTime = true;
+              isBeforeSchool = false;
+              const nextSch = schedule[i + 1];
+              const target = new Date(now.getTime());
+              target.setHours(Math.floor(nextSch.start / 60), nextSch.start % 60, 0, 0);
+              countdownTargetDate = target;
+
+              const isLunchPeriod = (nextStart - sch.end > breakMins + 10);
+
+              if (isLunchPeriod) {
+                // 점심시간인 경우: 5교시 BT분 전 전까지는 "점심" 표시
+                if (curMins < nextStart - breakMins) {
+                  specialEventText = "점심";
+                  statusText = "점심";
+                } else {
+                  // 5교시 BT분 전부터는 5교시 예고
+                  specialEventText = null;
+                  statusText = "수업 예정";
+                }
+              } else {
+                statusText = "쉬는 시간";
+              }
+            } else {
+              currentPeriodIndex = i;
+              isAfterSchool = true;
+              specialEventText = "종례";
+              statusText = "하교 안내";
+            }
+            break;
+          }
+        }
+
+        // Flashing & Alert Logic
+        handleLunchAlert(curMins);
+
+        // Update countdown label based on state
+        const cdLabel = document.getElementById('countdown-label');
+        const cdSection = document.querySelector('.countdown-section');
+
+        // Revised Countdown Visibility rules:
+        // - 1교시 BT전부터 ~ 마지막 교시 수업 (전체화면 일때만)
+        const lastSch = schedule[schedule.length - 1];
+        const firstSch = schedule[0];
+        const isWithinCountdownRange = (curMins >= firstSch.start - breakMins && curMins < lastSch.end);
+
+        if (isBreakTime || isBeforeSchool || (specialEventText && specialEventText !== '종례')) {
+          cdLabel.innerText = "수업 시작까지";
+        } else if (isAfterSchool || specialEventText === '종례') {
+          cdLabel.innerText = "하교 안내 중";
+        } else {
+          cdLabel.innerText = "수업 종료까지";
+        }
+
+        const classContainer = document.getElementById('current-class-container');
+        const specContainer = document.getElementById('special-event-container');
+        const noClass = document.getElementById('no-class-message');
+
+        if (specialEventText) {
+          classContainer.style.display = 'none'; specContainer.style.display = 'flex'; noClass.style.display = 'none';
+          document.getElementById('special-event-text').innerText = specialEventText;
+          document.getElementById('special-event-teacher').innerText = (specialEventText === '종례' ? (info.homeTeacher || "") + " 선생님" : "");
+          document.getElementById('lunch-tool-container').style.display = (specialEventText === '점심' ? 'flex' : 'none');
+
+          const specImgCont = document.getElementById('special-event-image-container');
+          specImgCont.style.display = 'none'; // No icons for special events as requested
+
+          if (specialEventText === '점심') {
+            document.getElementById('special-event-text').style.fontSize = '25vh';
+          } else {
+            document.getElementById('special-event-text').style.fontSize = '20vh';
+          }
+        } else if (currentPeriodIndex !== -1 && !isAfterSchool) {
+          classContainer.style.display = 'flex'; specContainer.style.display = 'none'; noClass.style.display = 'none';
+          const item = timetableData[currentPeriodIndex];
+          document.getElementById('class-status').innerText = statusText;
+          document.getElementById('class-subject').innerText = item.subject;
+          document.getElementById('class-subject').style.fontSize = item.subject.length > 5 ? '8vh' : '15vh';
+          document.getElementById('class-teacher').innerText = item.mappedTeacher + " 선생님";
+          document.getElementById('class-time-range').innerText = `${currentPeriodIndex + 1}교시 (${formatMinutes(schedule[currentPeriodIndex].start)} 시작)`;
+          const imgCont = document.getElementById('image-container');
+          imgCont.innerHTML = (item.subjectImage && !item.hideImage) ? `<img src="${item.subjectImage}" class="book-cover">` : '';
+          imgCont.style.display = (imgCont.innerHTML ? 'block' : 'none');
+        } else {
+          classContainer.style.display = 'none'; specContainer.style.display = 'none'; noClass.style.display = 'block';
+        }
+
+        // Layout Control: Break, Assembly, Lunch, and Dismissal are Fullscreen. Regular Class is Desktop. (PC ONLY)
+        const targetLayout = (isBreakTime || isAfterSchool || specialEventText) ? 'break' : 'class';
+        if (isElectron && targetLayout !== lastSystemLayout && window.api) {
+          window.api.setWindowLayout(targetLayout);
+          window.api.controlExplorer(targetLayout === 'break' ? 'kill' : 'start');
+          lastSystemLayout = targetLayout;
+          currentLayout = targetLayout;
+        }
+
+        // Countdown Section Visibility: Only in Fullscreen (break mode) AND within range
+        // Countdown Section Visibility: Visible during school hours (break or class)
+        const cdSectionInDOM = document.querySelector('.countdown-section');
+        if (cdSectionInDOM) {
+          // Visible if within range (from before 1st period to end of last period)
+          cdSectionInDOM.style.display = (isWithinCountdownRange ? 'flex' : 'none');
+        }
+
+        // --- April Fools 2026: Applause on Class End ---
+        if (checkAprilFools() && countdownTargetDate) {
+          const diff = countdownTargetDate - now;
+          if (diff <= 0 && diff > -5000) { // triggered within 5 seconds of end
+            if (!window._classEndApplausePlayed) {
+              playApplause();
+              window._classEndApplausePlayed = true;
+              setTimeout(() => { window._classEndApplausePlayed = false; }, 60000);
+            }
+          }
+        }
+
+        if (checkAprilFools() && !isCLIMode) {
+          initCLI();
+          return; // initCLI will handle further rendering
+        }
+
+        if (isCLIMode) {
+          renderTerminalLeft(schedule);
+          renderTerminalTopRight();
+          renderTerminalBottomRight(schedule, isBreakTime, specialEventText);
+        } else {
+          renderSidebar(schedule, isBreakTime, specialEventText, isBeforeSchool, isAfterSchool);
+        }
+
+      } catch (err) { console.error("Update Loop Error:", err); }
+      setTimeout(updateCurrentClassDisplay, isCLIMode ? 1000 : 30000);
+    }
+
+    function renderSidebar(schedule, isBreakTime, specialEventText, isBeforeSchool, isAfterSchool) {
+      const container = document.getElementById('daily-list-container');
+      container.innerHTML = '';
+
+      // Assembly
+      const assemblyActive = specialEventText === '조회';
+      const assemblyEl = document.createElement('div');
+      assemblyEl.className = `daily-item ${assemblyActive ? 'highlight' : ''}`;
+      assemblyEl.style.height = '8vh';
+      assemblyEl.innerHTML = `<div class="daily-item-left"><div class="di-period">08:40-09:00</div></div><div class="daily-item-middle"><div class="di-subject" style="color:var(--accent); font-size:3vh;">조회</div></div><div style="width:9vh;"></div>`;
+      container.appendChild(assemblyEl);
+
+      timetableData.forEach((item, idx) => {
+        const sch = schedule[idx];
+        const isActive = (currentPeriodIndex === idx && !isBreakTime && !specialEventText);
+
+        if (idx === 4) {
+          const lunchActive = specialEventText === '점심';
+          const lunchEl = document.createElement('div');
+          lunchEl.className = `daily-item ${lunchActive ? 'highlight' : ''}`;
+          lunchEl.style.height = '8vh';
+          lunchEl.innerHTML = `<div class="daily-item-left"><div class="di-period">${formatMinutes(schedule[3].end)}-${formatMinutes(schedule[4].start)}</div></div><div class="daily-item-middle"><div class="di-subject" style="color:var(--accent); font-size:3vh;">점심</div></div><div style="width:9vh;"></div>`;
+          container.appendChild(lunchEl);
+        }
+
+        const itemEl = document.createElement('div');
+        itemEl.className = `daily-item ${isActive ? 'highlight' : ''}`;
+        if (item.isOverridden) itemEl.classList.add('overridden');
+
+        const teacherStr = (item.subject === '자율' ? '' : (item.mappedTeacher || ""));
+        const thumbHtml = (item.subjectImage && !item.hideImage) ? `<img src="${item.subjectImage}" class="daily-item-thumb">` : '';
+
+        itemEl.innerHTML = `
+          <div class="daily-item-left">
+            <div class="di-period">${idx + 1}교시 (${formatMinutes(sch.start)}~${formatMinutes(sch.end)})</div>
+            <div class="di-teacher">${teacherStr}</div>
+          </div>
+          <div class="daily-item-middle">
+            <div class="di-subject">${item.subject}</div>
+          </div>
+          <div class="daily-item-right">${thumbHtml}</div>
+        `;
+        container.appendChild(itemEl);
+      });
+
+      // Dismissal
+      const dismissalActive = specialEventText === '종례' || isAfterSchool;
+      const dismissalEl = document.createElement('div');
+      dismissalEl.className = `daily-item ${dismissalActive ? 'highlight' : ''}`;
+      dismissalEl.style.height = '8vh';
+      dismissalEl.innerHTML = `<div class="daily-item-left"><div class="di-period">${formatMinutes(schedule[schedule.length - 1].end)} ~</div></div><div class="daily-item-middle"><div class="di-subject" style="color:var(--accent); font-size:3vh;">종례</div></div><div style="width:9vh;"></div>`;
+      container.appendChild(dismissalEl);
+    }
+
+    function quitApp() { if (window.api && window.api.appQuit) window.api.appQuit(); }
+    async function refreshDashboard() { isInitStarted = false; await initDashboard(); }
+    function openSettings() { document.getElementById('settings-overlay').style.display = 'flex'; }
+    function closeSettings() { document.getElementById('settings-overlay').style.display = 'none'; }
+
+    function handleCloseClick() { quitApp(); }
+    function handleFileClick() {
+      const target = (currentLayout === 'break' ? 'class' : 'break');
+      if (window.api) {
+        window.api.setWindowLayout(target);
+        window.api.controlExplorer(target === 'break' ? 'kill' : 'start');
+        currentLayout = target;
+
+        // Update Countdown visibility immediately on toggle
+        const cdSectionInDOM = document.querySelector('.countdown-section');
+        const now = getCurrentTime();
+        const curMins = now.getHours() * 60 + now.getMinutes();
+        const info = window.appInfo || {};
+        const startTime = info.StartTime || "09:00";
+        const startMins = getMinutes(startTime);
+        const breakMins = info.Breaktime || 10;
+        const classDur = info.ClassDuration || 45;
+
+        let marker = startMins;
+        let lastEnd = 0;
+        if (timetableData) {
+          timetableData.forEach((item, i) => {
+            if (String(item.classTime) === '5' && i > 0) {
+              const lunchDur = info.LunchDuration || 50;
+              marker += (lunchDur > breakMins ? lunchDur - breakMins : 0);
+            }
+            lastEnd = marker + classDur;
+            marker = lastEnd + breakMins;
+          });
+        }
+
+        const isWithinCountdownRange = (curMins >= startMins - breakMins && curMins < lastEnd);
+
+        if (cdSectionInDOM) {
+          cdSectionInDOM.style.display = (isWithinCountdownRange ? 'flex' : 'none');
+        }
+      }
+    }
+
+    // USB Sync Logic
+    function showUSBNotification(message, subMessage = "", colorClass = "") {
+      let toast = document.getElementById('usb-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'usb-toast';
+        toast.className = 'usb-toast';
+        toast.innerHTML = `
+          <svg viewBox="0 0 24 24"><path d="M15 7v4h1v2h-3V5h2l-3-4-3 4h2v8H8v-2.07c.7-.37 1.2-1.08 1.2-1.93 0-1.21-.99-2.2-2.2-2.2-1.21 0-2.2.99-2.2 2.2 0 .85.5 1.56 1.2 1.93V13c0 1.11.89 2 2 2h3v3.05c-.71.37-1.2 1.1-1.2 1.95 0 1.21.99 2.2 2.2 2.2 1.21 0 2.2-.99 2.2-2.2 0-.85-.49-1.58-1.2-1.95V15h3c1.11 0 2-.89 2-2v-2h1V7h-4z"/></svg>
+          <div>
+            <div id="usb-msg-main">USB 인식됨</div>
+            <div id="usb-msg-sub" class="usb-update-status"></div>
+          </div>
+        `;
+        document.body.appendChild(toast);
+      }
+
+      toast.className = 'usb-toast ' + colorClass;
+      document.getElementById('usb-msg-main').innerText = message;
+      document.getElementById('usb-msg-sub').innerText = subMessage;
+      toast.classList.add('active');
+
+      // Auto close after 3 seconds as requested
+      setTimeout(() => toast.classList.remove('active'), 3000);
+    }
+
+    let currentUSBDrive = null;
+
+    function openUSBShortcut() {
+      if (currentUSBDrive && window.api) {
+        window.api.openUSBExplorer(currentUSBDrive);
+      }
+    }
+
+    if (window.api && window.api.onUSBEvent) {
+      window.api.onUSBEvent((event, data) => {
+        console.log("[USB Event]", data);
+
+        if (data.type === 'removed') {
+          if (currentUSBDrive === data.drive) {
+            currentUSBDrive = null;
+            document.getElementById('usb-shortcut-btn').style.display = 'none';
+            showUSBNotification("USB 제거됨", "연결이 해제되었습니다.", "usb-purple");
+          }
+          return;
+        }
+
+        if (data.drive) {
+          currentUSBDrive = data.drive;
+          document.getElementById('usb-shortcut-btn').style.display = 'flex';
+        }
+
+        if (data.type === 'inserted') {
+          showUSBNotification("USB 인식됨", "자체 탐색기를 실행합니다.", "usb-mint");
+        } else if (data.type === 'updater-detected') {
+          showUSBNotification("BoardCastUpdater 인식됨", "업데이트를 확인합니다.", "usb-blue");
+        } else if (data.type === 'boardbook-detected') {
+          showUSBNotification("BoardBook 인식됨", "교과서 연동이 가능합니다.", "usb-purple");
+          if (checkAprilFools()) playApplause();
+        } else if (data.type === 'update-start') {
+          showUSBNotification("업데이트 시작", "곧 프로그램이 재시작됩니다.", "usb-blue");
+        }
+      });
+    }
+
+    async function initDashboard() {
+      if (isInitStarted) return; isInitStarted = true;
+      try {
+        console.log("initDashboard: Starting...");
+        const res = await getTimetable();
+        console.log("initDashboard: Timetable response", res);
+
+        if (!res || (!res.success && !res.needsMapping)) {
+          document.getElementById('overlay-title').innerText = '오류 발생';
+          document.getElementById('overlay-desc').innerText = res ? (res.error || '알 수 없는 오류') : '응답 없음 (네트워크 확인)';
+          document.getElementById('reload-btn').style.display = 'block';
+          isInitStarted = false;
+          return;
+        }
+
+        if (res.needsMapping) {
+          console.log("initDashboard: Needs mapping, opening settings");
+          document.getElementById('overlay').style.display = 'none'; // 설정을 가리지 않도록 로딩창 제거
+          if (res.message.includes("교과서")) {
+            await openSettings(2);
+          } else {
+            await openSettings(1);
+          }
+          return;
+        }
+
+        console.log("initDashboard: Dashboard data loaded, hiding overlay.");
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('settings-overlay').style.display = 'none'; // Ensure settings are closed
+
+        window.appInfo = res.info;
+
+        // Update school display dynamically
+        const info = res.info || {};
+        const schoolName = info.schoolName || "학교 정보 없음";
+        const grade = info.grade ? `${info.grade}학년 ` : "";
+        const classNum = info.class ? `${info.class}반` : "";
+        document.getElementById('school-display').innerText = `${schoolName} ${grade}${classNum}`.trim();
+
+        timetableData = res.timetable || [];
+
+        // --- April Fools 2026: Auto-init CLI ---
+        if (checkAprilFools()) {
+          initCLI();
+        } else {
+          updateCurrentClassDisplay();
+        }
+
+        // Final UI stabilization
+        setTimeout(() => {
+          if (document.getElementById('overlay').style.display !== 'none') {
+            document.getElementById('overlay').style.display = 'none';
+          }
+        }, 500);
+      } catch (err) {
+        console.error("initDashboard Critical Error:", err);
+        document.getElementById('overlay-title').innerText = '치명적 오류';
+        document.getElementById('overlay-desc').innerText = err.message;
+        document.getElementById('reload-btn').style.display = 'block';
+        isInitStarted = false;
+      }
+    }
+
+    // Modal & Settings functions omitted for brevity in this view but kept in actual implementation
+    // ... including proceedToStep2, renderImageMappingUI, finishSettings etc ...
+    // Note: Re-adding necessary settings logic for full restoration
+
+    async function openSettings(step = 1) {
+      const data = await safeInvoke('getSettings');
+      if (!data) return;
+      const info = data.info || {};
+      document.getElementById('set-region').value = info.region || "";
+      document.getElementById('set-school').value = info.schoolName || "";
+      document.getElementById('set-grade').value = info.grade || 1;
+      document.getElementById('set-class').value = info.class || 1;
+      document.getElementById('set-hometeacher').value = info.homeTeacher || "";
+      document.getElementById('set-starttime').value = info.StartTime || "09:00";
+      document.getElementById('set-breaktime').value = info.Breaktime || 10;
+      document.getElementById('set-classduration').value = info.ClassDuration || 45;
+      document.getElementById('set-lunchtime').value = info.LunchDuration || 50;
+      document.getElementById('set-devmode').checked = !!info.Dev;
+
+      document.getElementById('settings-overlay').style.display = 'flex';
+      if (step === 2) renderImageMappingUI();
+      else if (step === 3) renderTeacherMappingUI();
+      else showStep(1);
+    }
+
+    function showStep(s) {
+      console.log(`showStep: Switching to Step ${s}`);
+      const s1 = document.getElementById('settings-step-1');
+      const s2 = document.getElementById('settings-step-2');
+      const s3 = document.getElementById('settings-step-3');
+      if (s1) s1.style.display = (s === 1 ? 'flex' : 'none');
+      if (s2) s2.style.display = (s === 2 ? 'flex' : 'none');
+      if (s3) s3.style.display = (s === 3 ? 'flex' : 'none');
+    }
+
+    async function proceedToStep2() {
+      try {
+        console.log("proceedToStep2: Saving settings...");
+        const nextBtn = document.querySelector('#settings-step-1 .primary');
+        if (nextBtn) { nextBtn.innerText = "저장 중..."; nextBtn.disabled = true; }
+
+        const info = {
+          region: document.getElementById('set-region').value.trim(),
+          schoolName: document.getElementById('set-school').value.trim(),
+          grade: parseInt(document.getElementById('set-grade').value),
+          class: parseInt(document.getElementById('set-class').value),
+          homeTeacher: document.getElementById('set-hometeacher').value.trim(),
+          StartTime: document.getElementById('set-starttime').value,
+          Breaktime: parseInt(document.getElementById('set-breaktime').value) || 10,
+          ClassDuration: parseInt(document.getElementById('set-classduration').value) || 45,
+          LunchDuration: parseInt(document.getElementById('set-lunchtime').value) || 50,
+          Dev: document.getElementById('set-devmode').checked
+        };
+
+        if (!info.schoolName) {
+          alert("학교명을 입력해주세요.");
+          if (nextBtn) { nextBtn.innerText = "다음 ➡️"; nextBtn.disabled = false; }
+          return;
+        }
+
+        const saveRes = await safeInvoke('saveSettings', { info });
+        console.log("proceedToStep2: Save result", saveRes);
+
+        if (!saveRes || !saveRes.success) {
+          throw new Error(saveRes ? saveRes.error : "저장 실패 (IPC 응답 없음)");
+        }
+
+        console.log("proceedToStep2: Re-fetching timetable to check mapping...");
+        const res = await getTimetable();
+        console.log("proceedToStep2: Timetable response", res);
+
+        if (res && res.needsMapping) {
+          console.log("proceedToStep2: Needs mapping, switching UI.");
+          if (res.message && res.message.includes("교과서")) {
+            await renderImageMappingUI();
+          } else {
+            // Probably still missing school info due to some error, but don't loop infinitely
+            console.warn("proceedToStep2: Needs mapping but message is unexpected:", res.message);
+            location.reload();
+          }
+        } else if (res && res.success) {
+          console.log("proceedToStep2: Everything seems okay, showing dashboard.");
+          document.getElementById('settings-overlay').style.display = 'none';
+          document.getElementById('overlay').style.display = 'none';
+          location.reload(); // Final success reload is okay
+        } else {
+          throw new Error(res ? res.error : "시간표 데이터를 불러올 수 없습니다.");
+        }
+      } catch (err) {
+        console.error("proceedToStep2 Error:", err);
+        alert("데이터 저장 중 오류가 발생했습니다: " + err.message);
+        const nextBtn = document.querySelector('#settings-step-1 .primary');
+        if (nextBtn) { nextBtn.innerText = "다시 시도 ➡️"; nextBtn.disabled = false; }
+      }
+    }
+
+    async function renderImageMappingUI() {
+      try {
+        console.log("renderImageMappingUI: Starting...");
+        showStep(2);
+        const data = await safeInvoke('getSettings');
+        if (!data) { console.error("renderImageMappingUI: Failed to get settings"); return; }
+
+        const subjects = data.tbImageArr || [];
+        console.log("renderImageMappingUI: Subjects to map", subjects);
+
+        const cont = document.getElementById('image-mapping-container');
+        if (!cont) { console.error("renderImageMappingUI: Mapping container not found"); return; }
+        cont.innerHTML = "";
+
+        // 중복 제거된 과목 리스트 추출
+        const uniqueSubjs = [...new Set(subjects.map(s => s.subject))].filter(Boolean).sort();
+        console.log("renderImageMappingUI: Unique subjects", uniqueSubjs);
+
+        uniqueSubjs.forEach(subj => {
+          const entry = subjects.find(s => s.subject === subj);
+          const row = document.createElement('div');
+          row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.justifyContent = 'space-between';
+          row.style.padding = '1vh 0'; row.style.borderBottom = '1px solid #333';
+          row.innerHTML = `
+            <span style="font-size:1.8vh; font-weight:bold;">${subj}</span>
+            <select id="img-select-${subj}" style="width:15vw; background:#111; color:#fff; border:1px solid #444; padding:0.5vh; border-radius:4px;">
+              <option value="none">이미지 없음</option>
+            </select>
+          `;
+          cont.appendChild(row);
+        });
+
+        console.log("renderImageMappingUI: Fetching image files...");
+        const existingFiles = await safeInvoke('getTbimagesList');
+        console.log("renderImageMappingUI: Image files found", existingFiles);
+        updateImageSelects(existingFiles);
+
+        // 기존에 선택된 값 복구
+        uniqueSubjs.forEach(subj => {
+          const entry = subjects.find(s => s.subject === subj);
+          if (entry && entry.image && entry.image !== 'none') {
+            const sel = document.getElementById(`img-select-${subj}`);
+            if (sel) sel.value = entry.image;
+          }
+        });
+      } catch (err) {
+        console.error("renderImageMappingUI Critical Error:", err);
+      }
+    }
+
+    async function importImages() {
+      const result = await window.api.importTBImages();
+      if (result && result.success) {
+        document.getElementById('import-status').innerText = `${result.count}개의 이미지를 불러왔습니다.`;
+        updateImageSelects(result.files);
+      }
+    }
+
+    function findBestMatch(subject, files) {
+      if (!files || files.length === 0) return "none";
+      const cleanSubj = subject.replace(/[\dABab]+$/, '').trim().toLowerCase();
+
+      // 1. Exact match (ignoring extension)
+      let match = files.find(f => {
+        const name = f.split('.').slice(0, -1).join('.').toLowerCase();
+        return name === cleanSubj;
+      });
+      if (match) return match;
+
+      // 2. Contains match
+      match = files.find(f => {
+        const name = f.split('.').slice(0, -1).join('.').toLowerCase();
+        return name.includes(cleanSubj) || cleanSubj.includes(name);
+      });
+      return match || "none";
+    }
+
+    function updateImageSelects(files) {
+      if (!files) return;
+      const selects = document.querySelectorAll('[id^="img-select-"]');
+      selects.forEach(sel => {
+        const subject = sel.id.replace('img-select-', '');
+        const currentVal = sel.value;
+        sel.innerHTML = '<option value="none">이미지 없음</option>';
+        files.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f; opt.innerText = f;
+          sel.appendChild(opt);
+        });
+
+        // Auto match if current value is none or invalid
+        if (currentVal === "none" || !currentVal) {
+          const match = findBestMatch(subject, files);
+          sel.value = match;
+          console.log(`Auto-matched ${subject} to ${match}`);
+        } else {
+          sel.value = currentVal;
+        }
+      });
+    }
+
+    async function proceedToStep3() {
+      // 보관된 이미지 매핑 저장은 Step 3로 넘어가기 전이나 완료 시 수행
+      showStep(3);
+      renderTeacherMappingUI();
+    }
+
+    async function renderTeacherMappingUI() {
+      const data = await safeInvoke('getSettings');
+      if (!data) return;
+      const subjects = data.tbImageArr || [];
+      const cont = document.getElementById('teacher-mapping-container');
+      cont.innerHTML = "";
+
+      subjects.forEach(item => {
+        const row = document.createElement('div');
+        row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.gap = '1vw';
+        row.style.padding = '1vh 0'; row.style.borderBottom = '1px solid #333';
+        row.innerHTML = `
+          <div style="width:8vw; font-size:1.6vh; color:var(--accent); font-weight:800;">${item.subject}</div>
+          <div style="width:5vw; font-size:1.4vh; color:#888;">(${item.id.replace(item.subject, '')})</div>
+          <input type="text" id="teacher-input-${item.id}" value="${item.teacher || ''}" placeholder="교사 이름 입력" 
+            style="flex:1; background:#111; color:#fff; border:1px solid #444; padding:0.8vh; border-radius:4px;">
+        `;
+        cont.appendChild(row);
+      });
+    }
+
+    async function finishSettings() {
+      const data = await safeInvoke('getSettings');
+      if (!data) return;
+      let tbImageArr = data.tbImageArr || [];
+      const info = data.info || {};
+
+      // 이미지 매핑 및 교사 매핑 수집
+      tbImageArr.forEach(item => {
+        const imgSel = document.getElementById(`img-select-${item.subject}`);
+        if (imgSel) item.image = imgSel.value;
+        const teacherInput = document.getElementById(`teacher-input-${item.id}`);
+        if (teacherInput) item.teacher = teacherInput.value.trim();
+      });
+
+      await window.api.saveSettings({ info, tbImageArr });
+      location.reload();
+    }
+
+    function backToStep1() { showStep(1); }
+    function backToStep2() { showStep(2); }
+
+    function updateLunchDepartureTime() {
+      const input = document.getElementById('lunch-tool-input').value;
+      if (!input) {
+        lunchDepartureTime = null;
+        document.getElementById('lunch-departure-display').style.display = 'none';
+        return;
+      }
+      lunchDepartureTime = input;
+      document.getElementById('lunch-departure-display').innerText = `${input} 출발`;
+      document.getElementById('lunch-departure-display').style.display = 'block';
+    }
+
+    function handleLunchAlert(curMins) {
+      if (!lunchDepartureTime) {
+        stopFlashing();
+        return;
+      }
+
+      const [dH, dM] = lunchDepartureTime.split(':').map(Number);
+      const departureMins = dH * 60 + dM;
+
+      // Only check if it's actually Lunch period
+      const isLunchNow = (document.getElementById('special-event-text').innerText === '점심');
+
+      if (!isLunchNow) {
+        stopFlashing();
+        return;
+      }
+
+      // Flash for 1 minute when reached
+      if (curMins === departureMins) {
+        startFlashing();
+      } else {
+        stopFlashing();
+      }
+    }
+
+    function startFlashing() {
+      if (isFlashing) return;
+      isFlashing = true;
+      document.body.classList.add('flashing');
+    }
+
+    function stopFlashing() {
+      if (!isFlashing) return;
+      isFlashing = false;
+      document.body.classList.remove('flashing');
+    }
+
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  </script>
+</body>
+
+</html>

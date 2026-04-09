@@ -1,0 +1,45 @@
+{
+  "name": "boardcast-app",
+  "version": "0.0.2-beta",
+  "description": "BoardCast by Jiwho",
+  "author": "Jiwho",
+  "productName": "BoardCast",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:pack": "electron-packager . Boardcast --platform=win32 --arch=x64 --out=dist --overwrite"
+  },
+  "build": {
+    "appId": "com.jiwho.boardcast",
+    "productName": "BoardCast",
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "BoardCast",
+      "include": "build/installer.nsh"
+    },
+    "portable": {
+      "artifactName": "BoardCast-Portable.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^41.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "comcigan-parser": "^1.0.0",
+    "qrcode": "^1.5.4"
+  }
+}
