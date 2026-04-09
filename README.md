@@ -30,7 +30,7 @@
 ## 📦 다운로드 및 설치
 
 ### 1. 영구 다운로드 링크
-- **[최신 버전 설치 파일 다운로드 (Standard Installer)](https://hiJiwho.github.io/BoardCast/setup.exe/)**
+- **[최신 버전 설치 파일 다운로드 (Standard Installer)](https://hiJiwho.github.io/BoardCast/)**
 
 ### 2. GitHub Releases
 - 특정 버전을 원하시거나 포터블 버전이 필요하신 경우 [Releases](https://github.com/hiJiwho/BoardCast/releases) 페이지에서 확인하실 수 있습니다.
@@ -50,7 +50,7 @@
 ### 파일 구성
 현재 저장소는 다음과 같이 구성되어 있습니다:
 - **`BoardCast-App/`**: Electron 기반 애플리케이션의 소스 코드 및 빌드 설정 파일들이 포함되어 있습니다.
-- **`setup.exe/`**: 최신 버전 다운로드를 위한 리다이렉션 페이지가 포함되어 있습니다.
+- **`index.html`**: 최신 버전 다운로드를 위한 리다이렉션 페이지입니다.
 
 ---
 
