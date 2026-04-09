@@ -1,8 +1,70 @@
-# BoardCast
-Timetable by 컴시간
+# BoardCast 📅
+클래식한 학교 시간표 안내 도우미
 
-## 📦 Downloads
-You can download the latest installer from the **[Releases](https://github.com/hiJiwho/BoardCast/releases)** page.
+**BoardCast**는 선생님과 학생들의 원활한 학교 생활을 위해 제작된 지능형 학교 시간표 프로그램입니다. 컴시간(Comcigan) API와 실시간으로 연동되어 정확한 시간표 정보를 제공하며, 수업 시간의 흐름에 따라 최적화된 레이아웃을 제공합니다.
 
-- **Standard Installer**: [BoardCast Setup 0.0.2-beta.exe](https://github.com/hiJiwho/BoardCast/releases/latest)
-- **Portable Version**: [BoardCast-Portable.exe](https://github.com/hiJiwho/BoardCast/releases/latest)
+---
+
+## 🚀 주요 기능
+
+### 1. 지능형 레이아웃 시스템 (Smart Layout)
+프로그램이 현재 시간을 감지하여 자동으로 화면 구성을 변경합니다.
+- **수업 시간 (교시 중)**: 화면 우측에 시간표 패널이 상시 표시되어, 다음 수업 준비를 돕습니다.
+- **쉬는 시간 & 점심 시간**: 전체 화면 레이아웃으로 전환되며, 현재 휴식 시간이 얼마나 남았는지 대형 카운트다운 타이머를 통해 보여줍니다.
+
+### 2. 컴시간 실시간 동기화
+- 매번 시간표를 직접 입력할 필요가 없습니다. 설정에서 학교 이름과 학급 정보만 입력하면 컴시간 데이터베이스에서 실시간으로 시간표를 가져옵니다.
+
+### 3. USB 탐색기 (USB Quick Explorer)
+- 수업에 필요한 PPT, 영상, 문서 자료가 USB에 있나요? 메뉴에서 **USB Explorer**를 실행하면 꽂혀 있는 USB 내의 파일을 빠르게 확인하고 실행할 수 있습니다.
+
+### 4. 레트로 터미널 모드 (CLI Mode) 📟
+- 클래식한 매킨토시 스타일의 터미널 UI를 제공합니다. `/cli` 명령어를 통해 접속할 수 있으며, 텍스트 기반의 감성적인 시간표 확인이 가능합니다. (4월 1일 만우절에는 자동으로 이 모드가 활성화될 수도 있습니다!)
+
+### 5. 교과서 및 교사 커스터마이징
+- **교과서 이미지**: `AppData/Roaming/boardcast-app/TBimage` 폴더에 과목명과 동일한 이미지 파일을 넣으면 수업 시간에 해당 교과서 표지가 화면에 나타납니다.
+- **교사 이름 매핑**: 줄임말로 표시되는 선생님 성함을 전체 성함으로 매핑하여 더 친숙하게 표시할 수 있습니다.
+
+---
+
+## 📦 다운로드 및 설치
+
+### 1. 영구 다운로드 링크
+- **[최신 버전 설치 파일 다운로드 (Standard Installer)](https://hiJiwho.github.io/BoardCast/setup.exe/)**
+
+### 2. GitHub Releases
+- 특정 버전을 원하시거나 포터블 버전이 필요하신 경우 [Releases](https://github.com/hiJiwho/BoardCast/releases) 페이지에서 확인하실 수 있습니다.
+
+---
+
+## ⌨️ 사용 가이드
+
+### 초기 설정
+1. 프로그램을 실행한 후 좌측 상단의 **메뉴(≡)** 아이콘을 클릭합니다.
+2. **Settings**를 선택하여 다음 정보를 입력합니다:
+   - 지역 (서울, 경기 등)
+   - 학교 이름
+   - 학년 및 반
+   - (선택 사항) 담임 선생님 성함, 수업/쉬는 시간 간격 등
+
+### 파일 구성
+현재 저장소는 다음과 같이 구성되어 있습니다:
+- **`BoardCast-App/`**: Electron 기반 애플리케이션의 소스 코드 및 빌드 설정 파일들이 포함되어 있습니다.
+- **`setup.exe/`**: 최신 버전 다운로드를 위한 리다이렉션 페이지가 포함되어 있습니다.
+
+---
+
+## 🛠 기술 스택
+- **Framework**: Electron
+- **UI Logic**: Vanilla JS, CSS3, HTML5
+- **Data Parser**: `comcigan-parser` (컴시간 알리미 연동)
+- **Installer**: NSIS (via electron-builder)
+
+---
+
+## 👤 제작 및 연락처
+- **Author**: Jiwho
+- **GitHub**: [@hiJiwho](https://github.com/hiJiwho)
+
+---
+*이 프로젝트는 교육 현장의 편의를 위해 제작되었습니다. 버그 제보나 기능 제안은 GitHub Issue를 이용해 주세요.*
