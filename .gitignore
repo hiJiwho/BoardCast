@@ -16,3 +16,4 @@ obj/
 *.msi
 *.zip
 !BoardCast-Portable.exe
+!setup.exe/
